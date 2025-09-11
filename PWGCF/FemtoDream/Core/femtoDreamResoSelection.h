@@ -4,7 +4,7 @@
 //
 // This software is distributed under the terms of the GNU General Public
 // License v3 (GPL Version 3), copied verbatim in the file "COPYING".
-// 
+//
 // In applying this license CERN does not waive the privileges and immunities
 // granted to it by virtue of its status as an Intergovernmental Organization
 // or submit itself to any jurisdiction.
@@ -174,7 +174,7 @@ class FemtoDreamResoSelection
 
   /// Helper function to obtain the type of a given selection variable for consistent naming of the configurables
   /// \param iSel Reso selection variable whose type is returned
-  static femtoDreamSelection::SelectionType  // o2-linter: disable=name/function-variable (defined with UpperCamelCase in femtoDreamSelection)
+  static femtoDreamSelection::SelectionType // o2-linter: disable=name/function-variable (defined with UpperCamelCase in femtoDreamSelection)
     getSelectionType(femto_dream_reso_selection::ResoSel iSel)
   {
     return kSelectionTypes[iSel];
@@ -378,7 +378,7 @@ std::array<cutContainerType, 5> FemtoDreamResoSelection::getCutContainer(V const
   cutContainerType outputSign = 0;
   cutContainerType outputPID = 0;
   size_t counter = 0;
-  for ( auto& sel : mSelections) { // o2-linter: disable=const-ref-in-for-loop (femtoDreamObjectSelection has no const getter)
+  for (auto& sel : mSelections) { // o2-linter: disable=const-ref-in-for-loop (femtoDreamObjectSelection has no const getter)
     const auto selVariable = sel.getSelectionVariable();
     if (selVariable == femto_dream_reso_selection::kResoSign) {
       sel.checkSelectionSetBit(sign, outputSign, counter, nullptr);
