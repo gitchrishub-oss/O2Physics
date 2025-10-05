@@ -9,14 +9,14 @@
 // granted to it by virtue of its status as an Intergovernmental Organization
 // or submit itself to any jurisdiction.
 
-/// \file femtoDreamProducerTaskReso.cxx
+/// \file femtoDreamProducerTaskResoNew.cxx
 /// \brief Tasks that produces the track tables used for the pairing
 /// \author Laura Serksnyte, TU München, laura.serksnyte@tum.de
 
 #include "PWGCF/DataModel/FemtoDerived.h"
 #include "PWGCF/FemtoDream/Core/femtoDreamCascadeSelection.h"
 #include "PWGCF/FemtoDream/Core/femtoDreamCollisionSelection.h"
-#include "PWGCF/FemtoDream/Core/femtoDreamResoSelection.h"
+#include "PWGCF/FemtoDream/Core/femtoDreamResoSelectionNew.h"
 #include "PWGCF/FemtoDream/Core/femtoDreamTrackSelection.h"
 #include "PWGCF/FemtoDream/Core/femtoDreamUtils.h"
 #include "PWGCF/FemtoDream/Core/femtoDreamV0SelectionK0Short.h"
@@ -98,7 +98,7 @@ int getRowDaughters(int daughID, T const& vecID)
   return rowInPrimaryTrackTableDaugh;
 }
 
-struct FemtoDreamProducerTaskReso {
+struct FemtoDreamProducerTaskResoNew {
 
   SliceCache cache;                                                        // o2::framework, included in ASoAHelpers.h
   Preslice<aod::FemtoFullTracks> perCol = aod::track::collisionId;         // o2::framework included in ASoAHelpers.h
@@ -200,7 +200,6 @@ struct FemtoDreamProducerTaskReso {
     Configurable<float> confResoInvMassLowLimit{"confResoInvMassLowLimit", 0.9, "Lower limit of the Reso invariant mass"}; // 1.011461
     Configurable<float> confResoInvMassUpLimit{"confResoInvMassUpLimit", 1.15, "Upper limit of the Reso invariant mass"};  // 1.027461
     Configurable<std::vector<float>> confResoSign{"confResoSign", std::vector<float>{-1., 1.}, "Reso Sign selection"};
-    Configurable<int> confResoMotherID{"confResoMotherID", static_cast<int>(femto_dream_reso_selection::kPhi), "ResoID of Mother [0: Phi, 1: KStar]"};
 
     Configurable<std::vector<float>> confDaughterCharge{FemtoDreamTrackSelection::getSelectionName(femtoDreamTrackSelection::kSign, "confDaughter"), std::vector<float>{-1, 1}, FemtoDreamTrackSelection::getSelectionHelper(femtoDreamTrackSelection::kSign, "Reso selection: ")};
     Configurable<std::vector<float>> confDaughterPtMin{FemtoDreamTrackSelection::getSelectionName(femtoDreamTrackSelection::kpTMin, "confDaughter"), std::vector<float>{0.1, 0.15, 0.2}, FemtoDreamTrackSelection::getSelectionHelper(femtoDreamTrackSelection::kpTMin, "Reso selection: ")};
@@ -849,19 +848,19 @@ struct FemtoDreamProducerTaskReso {
       auto sliceNegdaugh = daughter2.sliceByCached(aod::track::collisionId, col.globalIndex(), cache);
 
       for (const auto& track1 : slicePosdaugh) {
-        if (!resoCuts.daughterSelectionPos(track1) || !resoCuts.isSelectedMinimalPIDPos(track1, Resonance.confDaughterPIDspecies.value[0])) {
+        if (!resoCuts.daughterSelectionPos(track1) || !resoCuts.isSelectedMinimalPIDPos(track1, Resonance.confDaughterPIDspecies.value)) {
           continue;
         }
 
         for (const auto& track2 : sliceNegdaugh) {
-          if (!resoCuts.daughterSelectionNeg(track2) || !resoCuts.isSelectedMinimalPIDNeg(track2, Resonance.confDaughterPIDspecies.value[1])) {
+          if (!resoCuts.daughterSelectionNeg(track2) || !resoCuts.isSelectedMinimalPIDNeg(track2, Resonance.confDaughterPIDspecies.value)) {
             continue; /// loosest cuts for track2
           }
 
           bool resoIsNotAnti = true; /// bool for differentianting between particle/antiparticle
           float resoSign = 1.;
           if ((Resonance.confDaughterPIDspecies->size() > 1) && (Resonance.confDaughterPIDspecies.value[0] != Resonance.confDaughterPIDspecies.value[1])) {
-            auto [isNormal, WrongCombination] = resoCuts.checkCombination(track1, track2, static_cast<femto_dream_reso_selection::ResoMothers>(Resonance.confResoMotherID.value));
+            auto [isNormal, WrongCombination] = resoCuts.checkCombination(track1, track2, Resonance.confDaughterPIDspecies.value);
             if (WrongCombination) {
               continue;
             }
@@ -885,7 +884,8 @@ struct FemtoDreamProducerTaskReso {
 
           /// Get masses for calculating invariant Mass
           /// This only works for the case where the mass of opposite charged particles are the same (for example K+/K- have same mass)
-          auto [MassPart1, MassPart2] = resoCuts.getMassDaughters(static_cast<femto_dream_reso_selection::ResoMothers>(Resonance.confResoMotherID.value));
+          float MassPart1 = o2::track::PID::getMass(Resonance.confDaughterPIDspecies.value[0]);
+          float MassPart2 = o2::track::PID::getMass(Resonance.confDaughterPIDspecies.value[1]);
 
           /// Resonance
           ROOT::Math::PtEtaPhiMVector tempD1(track1.pt(), track1.eta(), track1.phi(), MassPart1);
@@ -1021,7 +1021,7 @@ struct FemtoDreamProducerTaskReso {
       fillCollisionsAndTracksAndV0<false, false, true, false>(col, tracks, tracks, fullV0s);
     }
   }
-  PROCESS_SWITCH(FemtoDreamProducerTaskReso, processData,
+  PROCESS_SWITCH(FemtoDreamProducerTaskResoNew, processData,
                  "Provide experimental data", true);
 
   void
@@ -1042,7 +1042,7 @@ struct FemtoDreamProducerTaskReso {
       fillCollisionsAndTracksAndV0<false, false, false, false>(col, tracks, tracks, fullV0s);
     }
   }
-  PROCESS_SWITCH(FemtoDreamProducerTaskReso, processData_noCentrality,
+  PROCESS_SWITCH(FemtoDreamProducerTaskResoNew, processData_noCentrality,
                  "Provide experimental data without centrality information", false);
 
   void processData_CentPbPb(aod::FemtoFullCollisionCentPbPb const& col, // o2-linter: disable=name/function-variable (UpperCamelCase defined soa::JOIN)
@@ -1062,7 +1062,7 @@ struct FemtoDreamProducerTaskReso {
       fillCollisionsAndTracksAndV0<false, false, true, true>(col, tracks, tracks, fullV0s);
     }
   }
-  PROCESS_SWITCH(FemtoDreamProducerTaskReso, processData_CentPbPb,
+  PROCESS_SWITCH(FemtoDreamProducerTaskResoNew, processData_CentPbPb,
                  "Provide experimental data with centrality information for PbPb collisions", false);
 
   void processMC(aod::FemtoFullCollisionMC const& col,
@@ -1077,7 +1077,7 @@ struct FemtoDreamProducerTaskReso {
     // fill the tables
     fillCollisionsAndTracksAndV0<false, false, true, false>(col, tracks, tracks, fullV0s);
   }
-  PROCESS_SWITCH(FemtoDreamProducerTaskReso, processMC, "Provide MC data", false);
+  PROCESS_SWITCH(FemtoDreamProducerTaskResoNew, processMC, "Provide MC data", false);
 
   void processMC_noCentrality(aod::FemtoFullCollisionNoCentMC const& col, // o2-linter: disable=name/function-variable (UpperCamelCase defined soa::JOIN)
                               aod::BCsWithTimestamps const&,
@@ -1091,7 +1091,7 @@ struct FemtoDreamProducerTaskReso {
     // fill the tables
     fillCollisionsAndTracksAndV0<true, false, false, false>(col, tracks, tracks, fullV0s);
   }
-  PROCESS_SWITCH(FemtoDreamProducerTaskReso, processMC_noCentrality, "Provide MC data without requiring a centrality calibration", false);
+  PROCESS_SWITCH(FemtoDreamProducerTaskResoNew, processMC_noCentrality, "Provide MC data without requiring a centrality calibration", false);
 
   void processMC_CentPbPb(aod::FemtoFullCollisionMCCentPbPb const& col, // o2-linter: disable=name/function-variable (UpperCamelCase defined soa::JOIN)
                           aod::BCsWithTimestamps const&,
@@ -1105,10 +1105,10 @@ struct FemtoDreamProducerTaskReso {
     // fill the tables
     fillCollisionsAndTracksAndV0<true, false, true, true>(col, tracks, tracks, fullV0s);
   }
-  PROCESS_SWITCH(FemtoDreamProducerTaskReso, processMC_CentPbPb, "Provide MC data with centrality information for PbPb collisions", false);
+  PROCESS_SWITCH(FemtoDreamProducerTaskResoNew, processMC_CentPbPb, "Provide MC data with centrality information for PbPb collisions", false);
 };
 WorkflowSpec defineDataProcessing(ConfigContext const& cfgc)
 {
-  WorkflowSpec workflow{adaptAnalysisTask<FemtoDreamProducerTaskReso>(cfgc)};
+  WorkflowSpec workflow{adaptAnalysisTask<FemtoDreamProducerTaskResoNew>(cfgc)};
   return workflow;
 }

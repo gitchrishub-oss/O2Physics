@@ -36,19 +36,39 @@ int main(int /*argc*/, char* argv[])
     cut.init(argv[1]);
 
     std::cout
-      << "Do you want to work with tracks or V0s or Cascades (T/V/C)? >";
+      << "Do you want to work with tracks or V0s or Cascades or Resonances (T/V/C/R)? >";
     std::string choice;
     std::cin >> choice;
-
+    bool ProducerIsReso = cut.getProducerIsReso();
     if (choice == std::string("T")) {
-      cut.setTrackSelectionFromFile("ConfTrk");
-      cut.setPIDSelectionFromFile("ConfTrk");
+      if (ProducerIsReso)
+      {
+        /// configs in femtoDreamProducerTaskReso.cxx are required to begin with lower case
+        cut.setTrackSelectionFromFile("confTrk");
+        cut.setPIDSelectionFromFile("confTrk");
+      } else {
+        cut.setTrackSelectionFromFile("ConfTrk");
+        cut.setPIDSelectionFromFile("ConfTrk");
+      }
     } else if (choice == std::string("V")) {
       std::cout << "Do you want to select V0s or one of its children (V/T)? >";
       std::cin >> choice;
-      cut.setV0SelectionFromFile("ConfV0");
-      cut.setTrackSelectionFromFile("ConfChild");
-      cut.setPIDSelectionFromFile("ConfChild");
+      if (ProducerIsReso)
+      {
+        cut.setV0SelectionFromFile("confV0");
+        cut.setTrackSelectionFromFile("confChild");
+        cut.setPIDSelectionFromFile("confChild");
+      } else {
+        cut.setV0SelectionFromFile("ConfV0");
+        cut.setTrackSelectionFromFile("ConfChild");
+        cut.setPIDSelectionFromFile("ConfChild");
+      }
+    } else if (choice == std::string("R")) {
+      std::cout << "Do you want to select Resos or one of its daughters (R/T)? >";
+      std::cin >> choice;
+      cut.setResoSelectionFromFile("confReso");
+      cut.setTrackSelectionFromFile("confDaughter");
+      cut.setPIDSelectionFromFile("confDaughter");
     } else if (choice == std::string("C")) {
       std::cout << "Do you want to select cascades, V0-Daughter tracks of the cascades or the Bachelor track (C/V/B)? >";
       std::cin >> choice;
