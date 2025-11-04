@@ -213,7 +213,7 @@ class FemtoDreamParticleHisto
     mHistogramRegistry->add((folderName + folderSuffix + "/hEta_DiffTruthReco").c_str(), "; #eta^{truth}; #eta^{reco} - #eta^{truth}", kTH2F, {{200, -1, 1}, {200, -1, 1}});
     mHistogramRegistry->add((folderName + folderSuffix + "/hPhi_DiffTruthReco").c_str(), "; #varphi^{truth}; #varphi^{reco} - #varphi^{truth}", kTH2F, {{720, 0, TMath::TwoPi()}, {200, -1, 1}});
 
-    if constexpr (mParticleType == o2::aod::femtodreamparticle::ParticleType::kTrack || mParticleType == o2::aod::femtodreamparticle::ParticleType::kV0Child || mParticleType == o2::aod::femtodreamparticle::ParticleType::kCascadeV0Child || mParticleType == o2::aod::femtodreamparticle::ParticleType::kCascadeBachelor) {
+    if constexpr (mParticleType == o2::aod::femtodreamparticle::ParticleType::kTrack || mParticleType == o2::aod::femtodreamparticle::ParticleType::kV0Child || mParticleType == o2::aod::femtodreamparticle::ParticleType::kCascadeV0Child || mParticleType == o2::aod::femtodreamparticle::ParticleType::kCascadeBachelor || mParticleType == o2::aod::femtodreamparticle::ParticleType::kResoChild) {
       /// Track histograms
       if (isDebug) {
         mHistogramRegistry->add((folderName + folderSuffix + "/Debug/hPDGmother_Primary").c_str(), "; PDG mother; Entries", kTH1I, {{6001, -3000.5, 3000.5}});
@@ -224,6 +224,7 @@ class FemtoDreamParticleHisto
         mHistogramRegistry->add((folderName + folderSuffix + "/Debug/hPDGmother_Else").c_str(), "; PDG mother; Entries", kTH1I, {{6001, -3000.5, 3000.5}});
         mHistogramRegistry->add((folderName + folderSuffix + "/Debug/hPDGmother_SecondaryDaughterLambda").c_str(), "; PDG mother; Entries", kTH1I, {{12001, -6000.5, 6000.5}});
         mHistogramRegistry->add((folderName + folderSuffix + "/Debug/hPDGmother_SecondaryDaughterSigmaplus").c_str(), "; PDG mother; Entries", kTH1I, {{12001, -6000.5, 6000.5}});
+        mHistogramRegistry->add((folderName + folderSuffix + "/Debug/hPDGmother_SecondaryDaughterPhi").c_str(), "; PDG mother; Entries", kTH1I, {{12001, -6000.5, 6000.5}});
 
         mHistogramRegistry->add((folderName + folderSuffix + "/hDCAxy_Primary").c_str(), "; #it{p}_{T} (GeV/#it{c}); DCA_{xy} (cm)", kTHnSparseF, {tempFitVarpTAxis, tempFitVarAxis, dcazAxis, multAxis});
         mHistogramRegistry->add((folderName + folderSuffix + "/hDCAxy_Secondary").c_str(), "; #it{p}_{T} (GeV/#it{c}); DCA_{xy} (cm)", kTHnSparseF, {tempFitVarpTAxis, tempFitVarAxis, dcazAxis, multAxis});
@@ -241,6 +242,7 @@ class FemtoDreamParticleHisto
         mHistogramRegistry->add((folderName + folderSuffix + "/hDCAxy_Fake").c_str(), "; #it{p}_{T} (GeV/#it{c}); DCA_{xy} (cm)", kTH2F, {tempFitVarpTAxis, tempFitVarAxis});
         mHistogramRegistry->add((folderName + folderSuffix + "/hDCAxy_SecondaryDaughterLambda").c_str(), "; #it{p}_{T} (GeV/#it{c}); DCA_{xy} (cm)", kTH2F, {tempFitVarpTAxis, tempFitVarAxis});
         mHistogramRegistry->add((folderName + folderSuffix + "/hDCAxy_SecondaryDaughterSigmaplus").c_str(), "; #it{p}_{T} (GeV/#it{c}); DCA_{xy} (cm)", kTH2F, {tempFitVarpTAxis, tempFitVarAxis});
+        mHistogramRegistry->add((folderName + folderSuffix + "/hDCAxy_SecondaryDaughterPhi").c_str(), "; #it{p}_{T} (GeV/#it{c}); DCA_{xy} (cm)", kTH2F, {tempFitVarpTAxis, tempFitVarAxis});
         mHistogramRegistry->add((folderName + folderSuffix + "/hDCAxy_Else").c_str(), "; #it{p}_{T} (GeV/#it{c}); DCA_{xy} (cm)", kTH2F, {tempFitVarpTAxis, tempFitVarAxis});
       }
 
@@ -272,6 +274,21 @@ class FemtoDreamParticleHisto
     } else if constexpr (mParticleType == o2::aod::femtodreamparticle::ParticleType::kCascade) {
       /// Cascade histograms
       /// to be implemented
+    } else if constexpr (mParticleType == o2::aod::femtodreamparticle::ParticleType::kReso) {
+      if (isDebug) {
+        mHistogramRegistry->add((folderName + folderSuffix + "/hDCAxy_Primary").c_str(), "; #it{p}_{T} (GeV/#it{c}); CPA", kTHnSparseF, {tempFitVarpTAxis, tempFitVarAxis, multAxis});
+        mHistogramRegistry->add((folderName + folderSuffix + "/hDCAxy_Secondary").c_str(), "; #it{p}_{T} (GeV/#it{c}); CPA", kTHnSparseF, {tempFitVarpTAxis, tempFitVarAxis, multAxis});
+        mHistogramRegistry->add((folderName + folderSuffix + "/hDCAxy_Material").c_str(), "; #it{p}_{T} (GeV/#it{c}); CPA", kTHnSparseF, {tempFitVarpTAxis, tempFitVarAxis, multAxis});
+        mHistogramRegistry->add((folderName + folderSuffix + "/hDCAxy_WrongCollision").c_str(), "; #it{p}_{T} (GeV/#it{c}); CPA", kTHnSparseF, {tempFitVarpTAxis, tempFitVarAxis, multAxis});
+        mHistogramRegistry->add((folderName + folderSuffix + "/hDCAxy_Fake").c_str(), "; #it{p}_{T} (GeV/#it{c}); CPA", kTHnSparseF, {tempFitVarpTAxis, tempFitVarAxis, multAxis});
+      } else {
+        mHistogramRegistry->add((folderName + folderSuffix + "/hDCAxy_Primary").c_str(), "; #it{p}_{T} (GeV/#it{c}); CPA", kTH2F, {tempFitVarpTAxis, tempFitVarAxis});
+        mHistogramRegistry->add((folderName + folderSuffix + "/hDCAxy_Secondary").c_str(), "; #it{p}_{T} (GeV/#it{c}); CPA", kTH2F, {tempFitVarpTAxis, tempFitVarAxis});
+        mHistogramRegistry->add((folderName + folderSuffix + "/hDCAxy_Material").c_str(), "; #it{p}_{T} (GeV/#it{c}); CPA", kTH2F, {tempFitVarpTAxis, tempFitVarAxis});
+        mHistogramRegistry->add((folderName + folderSuffix + "/hDCAxyWrongCollision").c_str(), "; #it{p}_{T} (GeV/#it{c}); CPA", kTH2F, {tempFitVarpTAxis, tempFitVarAxis});
+        mHistogramRegistry->add((folderName + folderSuffix + "/hDCAxy_Fake").c_str(), "; #it{p}_{T} (GeV/#it{c}); CPA", kTH2F, {tempFitVarpTAxis, tempFitVarAxis});
+      }
+
     } else {
       LOG(fatal) << "FemtoDreamParticleHisto: Histogramming for requested object not defined - quitting!";
     }
@@ -366,7 +383,7 @@ class FemtoDreamParticleHisto
       // mHistogramRegistry->fill(HIST(o2::aod::femtodreamparticle::ParticleTypeName[mParticleType]) + HIST(mFolderSuffix[mFolderSuffixType]) + HIST(o2::aod::femtodreamMCparticle::MCTypeName[mc]) + HIST("/hInvMassCascade"), part.mLambda());
       // mHistogramRegistry->fill(HIST(o2::aod::femtodreamparticle::ParticleTypeName[mParticleType]) + HIST(mFolderSuffix[mFolderSuffixType]) + HIST(o2::aod::femtodreamMCparticle::MCTypeName[mc]) + HIST("/hpTInvMassCascade"), part.pt(), part.mLambda());
     }
-    if constexpr (mParticleType == o2::aod::femtodreamparticle::ParticleType::kReso) {
+    if constexpr (mParticleType == o2::aod::femtodreamparticle::ParticleType::kReso && mc == o2::aod::femtodreamMCparticle::MCType::kRecon) {
       mHistogramRegistry->fill(HIST(o2::aod::femtodreamparticle::ParticleTypeName[mParticleType]) + HIST(mFolderSuffix[mFolderSuffixType]) + HIST(o2::aod::femtodreamMCparticle::MCTypeName[mc]) + HIST("/hInvMassReso"), part.mLambda());              // currently no MC for Phi!!
       mHistogramRegistry->fill(HIST(o2::aod::femtodreamparticle::ParticleTypeName[mParticleType]) + HIST(mFolderSuffix[mFolderSuffixType]) + HIST(o2::aod::femtodreamMCparticle::MCTypeName[mc]) + HIST("/hpTInvMassReso"), part.pt(), part.mLambda()); // getter from FDPArticles now!!
       mHistogramRegistry->fill(HIST(o2::aod::femtodreamparticle::ParticleTypeName[mParticleType]) + HIST(mFolderSuffix[mFolderSuffixType]) + HIST(o2::aod::femtodreamMCparticle::MCTypeName[mc]) + HIST("/hInvMassAntiReso"), part.mAntiLambda());
@@ -564,7 +581,7 @@ class FemtoDreamParticleHisto
       if (std::abs(pdgcode) == mPDG) { // fill this histogramm only for TRUE protons (independently of their origin) for the track purity estimation
         mHistogramRegistry->fill(HIST(o2::aod::femtodreamparticle::ParticleTypeName[mParticleType]) + HIST(mFolderSuffix[mFolderSuffixType]) + HIST("_MC/hPt_ReconNoFake"), part.pt());
       }
-      if constexpr (mParticleType == o2::aod::femtodreamparticle::ParticleType::kTrack || mParticleType == o2::aod::femtodreamparticle::ParticleType::kV0Child) {
+      if constexpr (mParticleType == o2::aod::femtodreamparticle::ParticleType::kTrack || mParticleType == o2::aod::femtodreamparticle::ParticleType::kV0Child || mParticleType == o2::aod::femtodreamparticle::ParticleType::kResoChild) {
         /// Track histograms
         if constexpr (isDebug) {
           switch (mctruthorigin) {
@@ -603,6 +620,11 @@ class FemtoDreamParticleHisto
               mHistogramRegistry->fill(HIST(o2::aod::femtodreamparticle::ParticleTypeName[mParticleType]) + HIST(mFolderSuffix[mFolderSuffixType]) + HIST("_MC/hDCAxy_SecondaryDaughterSigmaplus"),
                                        part.pt(), part.tempFitVar(), part.dcaZ(), mult);
               break;
+            case (o2::aod::femtodreamMCparticle::kSecondaryDaughterPhi):
+              mHistogramRegistry->fill(HIST(o2::aod::femtodreamparticle::ParticleTypeName[mParticleType]) + HIST(mFolderSuffix[mFolderSuffixType]) + HIST("_MC/Debug/hPDGmother_SecondaryDaughterPhi"), part.fdExtMCParticle().motherPDG());
+              mHistogramRegistry->fill(HIST(o2::aod::femtodreamparticle::ParticleTypeName[mParticleType]) + HIST(mFolderSuffix[mFolderSuffixType]) + HIST("_MC/hDCAxy_SecondaryDaughterPhi"),
+                                       part.pt(), part.tempFitVar(), part.dcaZ(), mult);
+              break;
             case (o2::aod::femtodreamMCparticle::kElse):
               mHistogramRegistry->fill(HIST(o2::aod::femtodreamparticle::ParticleTypeName[mParticleType]) + HIST(mFolderSuffix[mFolderSuffixType]) + HIST("_MC/Debug/hPDGmother_Else"), part.fdExtMCParticle().motherPDG());
               mHistogramRegistry->fill(HIST(o2::aod::femtodreamparticle::ParticleTypeName[mParticleType]) + HIST(mFolderSuffix[mFolderSuffixType]) + HIST("_MC/hDCAxy_Else"),
@@ -639,6 +661,10 @@ class FemtoDreamParticleHisto
               break;
             case (o2::aod::femtodreamMCparticle::kSecondaryDaughterSigmaplus):
               mHistogramRegistry->fill(HIST(o2::aod::femtodreamparticle::ParticleTypeName[mParticleType]) + HIST(mFolderSuffix[mFolderSuffixType]) + HIST("_MC/hDCAxy_SecondaryDaughterSigmaplus"),
+                                       part.pt(), part.tempFitVar());
+              break;
+            case (o2::aod::femtodreamMCparticle::kSecondaryDaughterPhi):
+              mHistogramRegistry->fill(HIST(o2::aod::femtodreamparticle::ParticleTypeName[mParticleType]) + HIST(mFolderSuffix[mFolderSuffixType]) + HIST("_MC/hDCAxy_SecondaryDaughterPhi"),
                                        part.pt(), part.tempFitVar());
               break;
             case (o2::aod::femtodreamMCparticle::kElse):
@@ -736,6 +762,51 @@ class FemtoDreamParticleHisto
         }
       } else if constexpr (mParticleType == o2::aod::femtodreamparticle::ParticleType::kCascade) {
         /// Cascade histograms
+      } else if constexpr (mParticleType == o2::aod::femtodreamparticle::ParticleType::kReso) {
+        /// V0 histograms
+        if constexpr (isDebug) {
+          switch (mctruthorigin) {
+            case (o2::aod::femtodreamMCparticle::kPrimary):
+              mHistogramRegistry->fill(HIST(o2::aod::femtodreamparticle::ParticleTypeName[mParticleType]) + HIST(mFolderSuffix[mFolderSuffixType]) + HIST("_MC/hDCAxy_Primary"),
+                                       part.pt(), part.tempFitVar(), mult);
+              break;
+            case (o2::aod::femtodreamMCparticle::kSecondary):
+              mHistogramRegistry->fill(HIST(o2::aod::femtodreamparticle::ParticleTypeName[mParticleType]) + HIST(mFolderSuffix[mFolderSuffixType]) + HIST("_MC/hDCAxy_Secondary"),
+                                       part.pt(), part.tempFitVar(), mult);
+              break;
+            case (o2::aod::femtodreamMCparticle::kWrongCollision):
+              mHistogramRegistry->fill(HIST(o2::aod::femtodreamparticle::ParticleTypeName[mParticleType]) + HIST(mFolderSuffix[mFolderSuffixType]) + HIST("_MC/hDCAxy_WrongCollision"),
+                                       part.pt(), part.tempFitVar(), mult);
+              break;
+            case (o2::aod::femtodreamMCparticle::kFake):
+              mHistogramRegistry->fill(HIST(o2::aod::femtodreamparticle::ParticleTypeName[mParticleType]) + HIST(mFolderSuffix[mFolderSuffixType]) + HIST("_MC/hDCAxy_Fake"),
+                                       part.pt(), part.tempFitVar(), mult);
+              break;
+            default:
+              LOG(fatal) << "femtodreamparticleMC: not known value for ParticleOriginMCTruth - please check. Quitting!";
+          }
+        } else {
+          switch (mctruthorigin) {
+            case (o2::aod::femtodreamMCparticle::kPrimary):
+              mHistogramRegistry->fill(HIST(o2::aod::femtodreamparticle::ParticleTypeName[mParticleType]) + HIST(mFolderSuffix[mFolderSuffixType]) + HIST("_MC/hDCAxy_Primary"),
+                                       part.pt(), part.tempFitVar());
+              break;
+            case (o2::aod::femtodreamMCparticle::kSecondary):
+              mHistogramRegistry->fill(HIST(o2::aod::femtodreamparticle::ParticleTypeName[mParticleType]) + HIST(mFolderSuffix[mFolderSuffixType]) + HIST("_MC/hDCAxy_Secondary"),
+                                       part.pt(), part.tempFitVar());
+              break;
+            case (o2::aod::femtodreamMCparticle::kWrongCollision):
+              mHistogramRegistry->fill(HIST(o2::aod::femtodreamparticle::ParticleTypeName[mParticleType]) + HIST(mFolderSuffix[mFolderSuffixType]) + HIST("_MC/hDCAxy_WrongCollision"),
+                                       part.pt(), part.tempFitVar());
+              break;
+            case (o2::aod::femtodreamMCparticle::kFake):
+              mHistogramRegistry->fill(HIST(o2::aod::femtodreamparticle::ParticleTypeName[mParticleType]) + HIST(mFolderSuffix[mFolderSuffixType]) + HIST("_MC/hDCAxy_Fake"),
+                                       part.pt(), part.tempFitVar());
+              break;
+            default:
+              LOG(fatal) << "femtodreamparticleMC: not known value for ParticleOriginMCTruth fo kReso - please check. Quitting!";
+          }
+        }
       } else {
         LOG(fatal) << "FemtoDreamParticleHisto: Histogramming for requested object not defined - quitting!";
       }

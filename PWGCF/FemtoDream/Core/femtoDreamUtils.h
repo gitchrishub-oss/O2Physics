@@ -9,7 +9,7 @@
 // granted to it by virtue of its status as an Intergovernmental Organization
 // or submit itself to any jurisdiction.
 
-/// \file FemtoUtils.h
+/// \file femtoDreamUtils.h
 /// \brief Utilities for the FemtoDream framework
 /// \author Luca Barioglio, TU München, luca.barioglio@cern.ch
 
@@ -116,7 +116,7 @@ inline int checkDaughterType(o2::aod::femtodreamparticle::ParticleType partType,
     }
 
   } else if (partType == o2::aod::femtodreamparticle::ParticleType::kV0Child) {
-    switch (abs(motherPDG)) {
+    switch (std::abs(motherPDG)) {
       case kLambda0:
         partOrigin = aod::femtodreamMCparticle::ParticleOriginMCTruth::kSecondaryDaughterLambda;
         break;
@@ -131,6 +131,14 @@ inline int checkDaughterType(o2::aod::femtodreamparticle::ParticleType partType,
     partOrigin = aod::femtodreamMCparticle::ParticleOriginMCTruth::kSecondary;
   } else if (partType == o2::aod::femtodreamparticle::ParticleType::kCascadeBachelor) {
     partOrigin = aod::femtodreamMCparticle::ParticleOriginMCTruth::kSecondary;
+  } else if (partType == o2::aod::femtodreamparticle::ParticleType::kResoChild) {
+    switch (std::abs(motherPDG)) {
+      case o2::constants::physics::Pdg::kPhi:
+        partOrigin = aod::femtodreamMCparticle::ParticleOriginMCTruth::kSecondaryDaughterPhi;
+        break;
+      default:
+        partOrigin = aod::femtodreamMCparticle::ParticleOriginMCTruth::kSecondary;
+    }
   }
   return partOrigin;
 };

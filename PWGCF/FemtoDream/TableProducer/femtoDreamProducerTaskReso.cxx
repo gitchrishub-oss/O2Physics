@@ -44,6 +44,7 @@
 #include <CCDB/BasicCCDBManager.h>
 
 #include "Math/Vector4D.h"
+#include "TMCProcess.h"
 #include "TMath.h"
 
 #include <fairlogger/Logger.h>
@@ -75,6 +76,13 @@ using FemtoFullTracks =
             aod::pidTOFFullEl, aod::pidTOFFullPi, aod::pidTOFFullKa,
             aod::pidTOFFullPr, aod::pidTOFFullDe, aod::pidTOFFullTr, aod::pidTOFFullHe>;
 
+using FemtoFullTracksMC =
+  soa::Join<aod::FullTracks, aod::TracksDCA,
+            aod::pidTPCFullEl, aod::pidTPCFullPi, aod::pidTPCFullKa,
+            aod::pidTPCFullPr, aod::pidTPCFullDe, aod::pidTPCFullTr, aod::pidTPCFullHe,
+            aod::pidTOFFullEl, aod::pidTOFFullPi, aod::pidTOFFullKa,
+            aod::pidTOFFullPr, aod::pidTOFFullDe, aod::pidTOFFullTr, aod::pidTOFFullHe, aod::McTrackLabels>;
+
 } // namespace o2::aod
 
 namespace software_triggers
@@ -100,10 +108,14 @@ int getRowDaughters(int daughID, T const& vecID)
 
 struct FemtoDreamProducerTaskReso {
 
-  SliceCache cache;                                                        // o2::framework, included in ASoAHelpers.h
+  SliceCache cache;
+
   Preslice<aod::FemtoFullTracks> perCol = aod::track::collisionId;         // o2::framework included in ASoAHelpers.h
   Partition<aod::FemtoFullTracks> daughter1 = aod::track::signed1Pt > 0.f; // o2::framework included in AnalysisHelper.h
   Partition<aod::FemtoFullTracks> daughter2 = aod::track::signed1Pt < 0.f; // o2::framework included in AnalysisHelper.h
+
+  Partition<aod::FemtoFullTracksMC> daughterMC1 = aod::track::signed1Pt > 0.f;
+  Partition<aod::FemtoFullTracksMC> daughterMC2 = aod::track::signed1Pt < 0.f;
 
   Zorro zorro;
 
@@ -731,11 +743,6 @@ struct FemtoDreamProducerTaskReso {
   void fillMCParticle(CollisionType const& col, ParticleType const& particle, o2::aod::femtodreamparticle::ParticleType fdparttype)
   {
     if (particle.has_mcParticle()) {
-
-      constexpr int ProcessDirectMother = 4;
-      constexpr int ProcessInelasticHadronic = 23;
-      constexpr int GenStatusTransport = -1;
-
       // get corresponding MC particle and its info
       auto particleMC = particle.mcParticle();
       auto pdgCode = particleMC.pdgCode();
@@ -760,7 +767,7 @@ struct FemtoDreamProducerTaskReso {
           // particle is from a decay -> getProcess() == 4
           // particle is generated during transport -> getGenStatusCode() == -1
           // list of mothers is not empty
-        } else if (particleMC.getProcess() == ProcessDirectMother && particleMC.getGenStatusCode() == GenStatusTransport && !motherparticlesMC.empty()) {
+        } else if (particleMC.getProcess() == kPDecay && particleMC.getGenStatusCode() == -kPMultipleScattering && !motherparticlesMC.empty()) {
           // get direct mother
           auto motherparticleMC = motherparticlesMC.front();
           pdgCodeMother = motherparticleMC.pdgCode();
@@ -769,7 +776,7 @@ struct FemtoDreamProducerTaskReso {
           // check if particle is material
           // particle is from inelastic hadronic interaction -> getProcess() == 23
           // particle is generated during transport -> getGenStatusCode() == -1
-        } else if (particleMC.getProcess() == ProcessInelasticHadronic && particleMC.getGenStatusCode() == GenStatusTransport) {
+        } else if (particleMC.getProcess() == kPHInhelastic && particleMC.getGenStatusCode() == -kPMultipleScattering) {
           particleOrigin = aod::femtodreamMCparticle::ParticleOriginMCTruth::kMaterial;
           // cross check to see if we missed a case
         } else {
@@ -803,6 +810,63 @@ struct FemtoDreamProducerTaskReso {
       outputCollsMCLabels(outputMCCollision.lastIndex());
     } else {
       outputCollsMCLabels(-1);
+    }
+  }
+
+  template <typename CollisionType, typename ParticleType>
+  void fillMCresonances(CollisionType const& col, ParticleType const& posPart, ParticleType const& negPart)
+  {
+    // check if particles have MC
+    if (!posPart.has_mcParticle() || !negPart.has_mcParticle()) {
+      outputPartsMCLabels(-1);
+      if (confIsDebug)
+        outputPartsExtMCLabels(-1);
+      return;
+    }
+
+    auto posPartMC = posPart.mcParticle();
+    auto negPartMC = negPart.mcParticle();
+
+    auto motherposPartsMC = posPartMC.template mothers_as<aod::McParticles>();
+    auto mothernegPartsMC = negPartMC.template mothers_as<aod::McParticles>();
+
+    if (motherposPartsMC.empty() || mothernegPartsMC.empty()) {
+      return;
+    }
+
+    auto motherposPartMC = motherposPartsMC.front();
+    auto mothernegPartMC = mothernegPartsMC.front();
+
+    int motherposPartPDG = motherposPartMC.pdgCode();
+    int mothernegPartPDG = mothernegPartMC.pdgCode();
+
+    int particleOrigin = 99;
+
+    // check for collision id
+    if ((col.has_mcCollision() && (posPartMC.mcCollisionId() != col.mcCollisionId() || negPartMC.mcCollisionId() != col.mcCollisionId())) || !col.has_mcCollision()) {
+      particleOrigin = aod::femtodreamMCparticle::ParticleOriginMCTruth::kWrongCollision;
+    }
+
+    bool sameMother = (motherposPartMC == mothernegPartMC);
+    bool posIsPhi = (motherposPartPDG == o2::constants::physics::Pdg::kPhi);
+    bool negIsPhi = (mothernegPartPDG == o2::constants::physics::Pdg::kPhi);
+    // case for reconstructed Phi
+    if (sameMother && posIsPhi) {
+      particleOrigin = motherposPartMC.isPhysicalPrimary()
+                         ? aod::femtodreamMCparticle::ParticleOriginMCTruth::kPrimary
+                         : aod::femtodreamMCparticle::ParticleOriginMCTruth::kSecondary; // extract the mothers or so..
+
+      outputPartsMC(particleOrigin, motherposPartPDG, motherposPartMC.pt(), motherposPartMC.eta(), motherposPartMC.phi());
+      outputPartsMCLabels(outputPartsMC.lastIndex());
+    } else if (!posIsPhi || !negIsPhi) { // wrongly reconstructed Phi
+      particleOrigin = aod::femtodreamMCparticle::ParticleOriginMCTruth::kFake;
+
+      ROOT::Math::PtEtaPhiMVector tempDaughter1Mass(posPart.pt(), posPart.eta(), posPart.phi(), o2::constants::physics::MassKPlus);
+      ROOT::Math::PtEtaPhiMVector tempDaughter2Mass(negPart.pt(), negPart.eta(), negPart.phi(), o2::constants::physics::MassKMinus);
+      ROOT::Math::PtEtaPhiMVector tempMass = tempDaughter1Mass + tempDaughter2Mass;
+
+      outputPartsMC(particleOrigin, o2::constants::physics::Pdg::kPhi, tempMass.pt(), tempMass.eta(), tempMass.phi());
+      outputPartsMCLabels(outputPartsMC.lastIndex());
     }
   }
 
@@ -873,8 +937,8 @@ struct FemtoDreamProducerTaskReso {
     } // for (const &auto track1 : sliceDaughters)
   }
 
-  template <bool isMC, bool hasItsPid, bool useCentrality, bool analysePbPb, typename CascadeType, typename V0Type, typename TrackType, typename TrackTypeWithItsPid, typename CollisionType>
-  void fillCollisionsAndTracksAndV0AndCascade(CollisionType const& col, TrackType const& tracks, TrackTypeWithItsPid const& tracksWithItsPid, V0Type const& fullV0s, CascadeType const& fullCascades)
+  template <bool isMC, bool hasItsPid, bool useCentrality, bool analysePbPb, typename V0Type, typename TrackType, typename TrackTypeWithItsPid, typename CollisionType, typename Partition>
+  void fillCollisionsAndTracksAndV0(CollisionType const& col, TrackType const& tracks, TrackTypeWithItsPid const& tracksWithItsPid, V0Type const& fullV0s, Partition const& Part1, Partition const& Part2)
   {
     // If triggering is enabled, select only events which were triggered wit our triggers
     if (confEnableTriggerSelection) {
@@ -982,12 +1046,10 @@ struct FemtoDreamProducerTaskReso {
       if (confIsDebug.value) {
         fillDebugParticle<true, hasItsPid>(track);
       }
-
       if constexpr (isMC) {
         fillMCParticle(col, track, o2::aod::femtodreamparticle::ParticleType::kTrack);
       }
     }
-
     if (confIsActivateV0.value) {
       for (const auto& v0 : fullV0s) {
 
@@ -1197,14 +1259,14 @@ struct FemtoDreamProducerTaskReso {
 
       resoCuts.updateThreshold();
 
-      auto slicePosdaugh = daughter1.sliceByCached(aod::track::collisionId, col.globalIndex(), cache); // o2::framework defined in AnalysisHelper.h
-      auto sliceNegdaugh = daughter2.sliceByCached(aod::track::collisionId, col.globalIndex(), cache);
+      auto slicePosdaugh = Part1.sliceByCached(aod::track::collisionId, col.globalIndex(), cache);
+
+      auto sliceNegdaugh = Part2.sliceByCached(aod::track::collisionId, col.globalIndex(), cache);
 
       for (const auto& track1 : slicePosdaugh) {
         if (!resoCuts.daughterSelectionPos(track1) || !resoCuts.isSelectedMinimalPIDPos(track1, Resonance.confDaughterPIDspecies.value)) {
           continue;
         }
-
         for (const auto& track2 : sliceNegdaugh) {
           if (!resoCuts.daughterSelectionNeg(track2) || !resoCuts.isSelectedMinimalPIDNeg(track2, Resonance.confDaughterPIDspecies.value)) {
             continue; /// loosest cuts for track2
@@ -1253,7 +1315,6 @@ struct FemtoDreamProducerTaskReso {
             resoIsNotAnti = isNormal;
           }
           /// Resos, where both daughters have the same PID are defaulted to sign 1. and resoIsNotAnti = true
-
           if (resoIsNotAnti) {
             resoRegistry.fill(HIST("AnalysisQA/Reso/InvMass"), tempReso.M());
             // Fill DaughterQA histos
@@ -1331,13 +1392,12 @@ struct FemtoDreamProducerTaskReso {
             outputDaugh1 = tempDA1;
             outputDaugh2 = tempDA2;
           }
-
           // fill FDParticles
           int postrkId = track1.globalIndex();
           int rowOfPosTrack = -1;
           rowOfPosTrack = getRowDaughters(postrkId, tmpIDtrack);
 
-          childIDs[0] = rowOfPosTrack; // should give me the row
+          childIDs[0] = rowOfPosTrack;
           childIDs[1] = 0;
           outputParts(outputCollision.lastIndex(),
                       track1.pt(),
@@ -1349,9 +1409,11 @@ struct FemtoDreamProducerTaskReso {
                       track1.dcaXY(),
                       childIDs,
                       outputDaugh1.M(),
-                      outputDaugh2.M()); // fill tempFitVar with dcaXY?
+                      outputDaugh2.M());
           const int rowPosTrk = outputParts.lastIndex();
-
+          if constexpr (isMC) {
+            fillMCParticle(col, track1, aod::femtodreamparticle::ParticleType::kResoChild);
+          }
           int negtrkId = track2.globalIndex();
           int rowOfNegTrack = -1;
           rowOfNegTrack = getRowDaughters(negtrkId, tmpIDtrack);
@@ -1368,8 +1430,11 @@ struct FemtoDreamProducerTaskReso {
                       track2.dcaXY(),
                       childIDs,
                       outputDaugh2.M(),
-                      outputDaugh1.M()); // maybe CPA instead of dcaXY()? as tempFitVar?
+                      outputDaugh1.M());
           const int rowNegTrk = outputParts.lastIndex();
+          if constexpr (isMC) {
+            fillMCParticle(col, track2, aod::femtodreamparticle::ParticleType::kResoChild);
+          }
 
           // Reso
           std::vector<int> indexChildIds = {rowPosTrk, rowNegTrk};
@@ -1383,8 +1448,11 @@ struct FemtoDreamProducerTaskReso {
                       -999.f,
                       indexChildIds,
                       tempReso.M(),
-                      tempAntiReso.M()); // no TempFitVar !!
-          // needed?
+                      tempAntiReso.M());
+          if constexpr (isMC) {
+            fillMCresonances(col, track1, track2);
+          }
+
           if (confIsDebug.value) {
             fillDebugParticle<true, false>(track1); // QA for positive daughter
             fillDebugParticle<true, false>(track2); // QA for negative daughter
@@ -1415,9 +1483,9 @@ struct FemtoDreamProducerTaskReso {
                                         aod::pidits::ITSNSigmaPr, aod::pidits::ITSNSigmaDe, aod::pidits::ITSNSigmaTr, aod::pidits::ITSNSigmaHe>(tracks);
 
     if (confUseItsPid.value) {
-      fillCollisionsAndTracksAndV0AndCascade<false, true, true, false>(col, tracks, tracksWithItsPid, fullV0s, fullCascades);
+      fillCollisionsAndTracksAndV0<false, true, true, false>(col, tracks, tracksWithItsPid, fullV0s, daughter1, daughter2);
     } else {
-      fillCollisionsAndTracksAndV0AndCascade<false, false, true, false>(col, tracks, tracks, fullV0s, fullCascades);
+      fillCollisionsAndTracksAndV0<false, false, true, false>(col, tracks, tracks, fullV0s, daughter1, daughter2);
     }
   }
   PROCESS_SWITCH(FemtoDreamProducerTaskReso, processData,
@@ -1437,9 +1505,9 @@ struct FemtoDreamProducerTaskReso {
                                         aod::pidits::ITSNSigmaPr, aod::pidits::ITSNSigmaDe, aod::pidits::ITSNSigmaTr, aod::pidits::ITSNSigmaHe>(tracks);
 
     if (confUseItsPid.value) {
-      fillCollisionsAndTracksAndV0AndCascade<false, true, false, false>(col, tracks, tracksWithItsPid, fullV0s, fullCascades);
+      fillCollisionsAndTracksAndV0<false, true, false, false>(col, tracks, tracksWithItsPid, fullV0s, daughter1, daughter2);
     } else {
-      fillCollisionsAndTracksAndV0AndCascade<false, false, false, false>(col, tracks, tracks, fullV0s, fullCascades);
+      fillCollisionsAndTracksAndV0<false, false, false, false>(col, tracks, tracks, fullV0s, daughter1, daughter2);
     }
   }
   PROCESS_SWITCH(FemtoDreamProducerTaskReso, processData_noCentrality,
@@ -1458,9 +1526,9 @@ struct FemtoDreamProducerTaskReso {
                                         aod::pidits::ITSNSigmaPr, aod::pidits::ITSNSigmaDe, aod::pidits::ITSNSigmaTr, aod::pidits::ITSNSigmaHe>(tracks);
 
     if (confUseItsPid.value) {
-      fillCollisionsAndTracksAndV0AndCascade<false, true, true, true>(col, tracks, tracksWithItsPid, fullV0s, fullCascades);
+      fillCollisionsAndTracksAndV0<false, true, true, true>(col, tracks, tracksWithItsPid, fullV0s, daughter1, daughter2);
     } else {
-      fillCollisionsAndTracksAndV0AndCascade<false, false, true, true>(col, tracks, tracks, fullV0s, fullCascades);
+      fillCollisionsAndTracksAndV0<false, false, true, true>(col, tracks, tracks, fullV0s, daughter1, daughter2);
     }
   }
   PROCESS_SWITCH(FemtoDreamProducerTaskReso, processDataCentPbPb,
@@ -1468,7 +1536,7 @@ struct FemtoDreamProducerTaskReso {
 
   void processMC(aod::FemtoFullCollisionMC const& col,
                  aod::BCsWithTimestamps const&,
-                 soa::Join<aod::FemtoFullTracks, aod::McTrackLabels> const& tracks,
+                 aod::FemtoFullTracksMC const& tracks,
                  aod::FemtoFullMCgenCollisions const&,
                  aod::McParticles const&,
                  soa::Join<o2::aod::V0Datas, aod::McV0Labels> const& fullV0s, /// \todo with FilteredFullV0s
@@ -1477,13 +1545,13 @@ struct FemtoDreamProducerTaskReso {
     // get magnetic field for run
     initCcdbMagTrig(col.bc_as<aod::BCsWithTimestamps>());
     // fill the tables
-    fillCollisionsAndTracksAndV0AndCascade<false, false, true, false>(col, tracks, tracks, fullV0s, fullCascades);
+    fillCollisionsAndTracksAndV0<true, false, true, false>(col, tracks, tracks, fullV0s, daughterMC1, daughterMC2);
   }
   PROCESS_SWITCH(FemtoDreamProducerTaskReso, processMC, "Provide MC data", false);
 
   void processMCnoCentrality(aod::FemtoFullCollisionNoCentMC const& col,
                              aod::BCsWithTimestamps const&,
-                             soa::Join<aod::FemtoFullTracks, aod::McTrackLabels> const& tracks,
+                             aod::FemtoFullTracksMC const& tracks,
                              aod::FemtoFullMCgenCollisions const&,
                              aod::McParticles const&,
                              soa::Join<o2::aod::V0Datas, aod::McV0Labels> const& fullV0s, /// \todo with FilteredFullV0s
@@ -1492,13 +1560,13 @@ struct FemtoDreamProducerTaskReso {
     // get magnetic field for run
     initCcdbMagTrig(col.bc_as<aod::BCsWithTimestamps>());
     // fill the tables
-    fillCollisionsAndTracksAndV0AndCascade<true, false, false, false>(col, tracks, tracks, fullV0s, fullCascades);
+    fillCollisionsAndTracksAndV0<true, false, false, false>(col, tracks, tracks, fullV0s, daughterMC1, daughterMC2);
   }
   PROCESS_SWITCH(FemtoDreamProducerTaskReso, processMCnoCentrality, "Provide MC data without requiring a centrality calibration", false);
 
   void processMCCentPbPb(aod::FemtoFullCollisionMCCentPbPb const& col,
                          aod::BCsWithTimestamps const&,
-                         soa::Join<aod::FemtoFullTracks, aod::McTrackLabels> const& tracks,
+                         aod::FemtoFullTracksMC const& tracks,
                          aod::FemtoFullMCgenCollisions const&,
                          aod::McParticles const&,
                          soa::Join<o2::aod::V0Datas, aod::McV0Labels> const& fullV0s, /// \todo with FilteredFullV0s
@@ -1507,7 +1575,7 @@ struct FemtoDreamProducerTaskReso {
     // get magnetic field for run
     initCcdbMagTrig(col.bc_as<aod::BCsWithTimestamps>());
     // fill the tables
-    fillCollisionsAndTracksAndV0AndCascade<true, false, true, true>(col, tracks, tracks, fullV0s, fullCascades);
+    fillCollisionsAndTracksAndV0<true, false, true, true>(col, tracks, tracks, fullV0s, daughterMC1, daughterMC2);
   }
   PROCESS_SWITCH(FemtoDreamProducerTaskReso, processMCCentPbPb, "Provide MC data with centrality information for PbPb collisions", false);
 };

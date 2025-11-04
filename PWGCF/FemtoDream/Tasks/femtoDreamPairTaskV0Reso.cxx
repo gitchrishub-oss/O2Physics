@@ -52,13 +52,19 @@ struct FemtoDreamPairTaskV0Reso {
   Preslice<aod::FDParticles> perCol = aod::femtodreamparticle::fdCollisionId;
 
   /// Histogramming for Event
-  FemtoDreamEventHisto eventHisto; // are my cases included check & add!
+  FemtoDreamEventHisto eventHisto;
 
   FemtoDreamContainer<femtoDreamContainer::EventType::same, femtoDreamContainer::Observable::kstar> sameEventCont;
   FemtoDreamContainer<femtoDreamContainer::EventType::mixed, femtoDreamContainer::Observable::kstar> mixedEventCont;
   // FemtoDreamPairCleaner<aod::femtodreamparticle::ParticleType::kV0, aod::femtodreamparticle::ParticleType::kReso> pairCleaner;
   FemtoDreamDetaDphiStar<aod::femtodreamparticle::ParticleType::kV0, aod::femtodreamparticle::ParticleType::kReso> pairCloseRejectionSE;
   FemtoDreamDetaDphiStar<aod::femtodreamparticle::ParticleType::kV0, aod::femtodreamparticle::ParticleType::kReso> pairCloseRejectionME;
+
+  using FilteredMCCollisions = soa::Filtered<soa::Join<FDCollisions, aod::FDMCCollLabels>>;
+  using FilteredMCCollision = FilteredMCCollisions::iterator;
+
+  using FDMCParts = soa::Join<aod::FDParticles, aod::FDMCLabels>;
+  using FDMCPart = FDMCParts::iterator;
 
   /// General options
   struct : ConfigurableGroup {
@@ -144,26 +150,29 @@ struct FemtoDreamPairTaskV0Reso {
     Configurable<float> ptMax{"ptMax", 999., "Maximum pT of Partricle 1 (V0)"};
     Configurable<float> etaMin{"etaMin", -10., "Minimum eta of Partricle 1 (V0)"};
     Configurable<float> etaMax{"etaMax", 10., "Maximum eta of Partricle 1 (V0)"};
-  } V01; // hier evtl noch weiter Configurables einfügen...
+  } V01;
 
   /// particle 2, (Resonance)   (needs implementation phi in cut bit )
   struct : ConfigurableGroup {
     std::string prefix = std::string("Reso2");
     Configurable<int> pdgCode{"pdgCode", 333, "PDG code of particle 2 (V0)"};
 
-    Configurable<float> invMassMin{"invMassMin", 1.017, "Minimum invariant mass of Partricle 2 (particle) (V0)"}; // phi values  for inv mass
-    Configurable<float> invMassMax{"invMassMax", 1.027, "Maximum invariant mass of Partricle 2 (particle) (V0)"};
+    Configurable<float> invMassMin{"invMassMin", 0.86, "Minimum invariant mass of Partricle 2 (particle) (V0)"}; // phi values  for inv mass
+    Configurable<float> invMassMax{"invMassMax", 1.2, "Maximum invariant mass of Partricle 2 (particle) (V0)"};
     Configurable<float> ptMin{"ptMin", 0., "Minimum pT of Partricle 2 (V0)"};
     Configurable<float> ptMax{"ptMax", 999., "Maximum pT of Partricle 2 (V0)"};
     Configurable<float> etaMin{"etaMin", -10., "Minimum eta of Partricle 2 (V0)"}; // change values
     Configurable<float> etaMax{"etaMax", 10., "Maximum eta of Partricle 2 (V0)"};  // change values
 
-    Configurable<femtodreamparticle::cutContainerType> daughPosCutBit{"daughPosCutBit", 4860458, "Selection bit for positive child of V02"};             // K+
-    Configurable<femtodreamparticle::cutContainerType> daughPosTPCBit{"daughPosTPCBit", 64, "PID TPC bit for positive child of V02"};                    // NSigma_TPC = 2.5
-    Configurable<femtodreamparticle::cutContainerType> daughPosTPCTOFBit{"daughPosTPCTOFBit", 32, "PID TOF bit for positive child of V02"};              // NSigma_TOF = 2.5
-    Configurable<femtodreamparticle::cutContainerType> daughNegCutBit{"daughNegCutBit", 4860457, "Selection bit for negative child of V02"};             // K-
-    Configurable<femtodreamparticle::cutContainerType> daughNegMergedTPCBit{"daughNegMergedTPCBit", 258, "PID TPC bit for negative child of V02"};       // NSigma_TPC = 2.5
-    Configurable<femtodreamparticle::cutContainerType> daughNegMergedTPCTOFBit{"daughNegMergedTPCTOFBit", 130, "PID TOF bit for negative child of V02"}; // NSigma_TOF = 2.5
+    Configurable<femtodreamparticle::cutContainerType> daughPosCutBit{"daughPosCutBit", 2401446, "Selection bit for positive child of V02"}; // K+
+    Configurable<femtodreamparticle::cutContainerType> daughPosTPCBit{"daughPosTPCBit", 4096, "PID TPC bit for positive child of V02"};
+    Configurable<femtodreamparticle::cutContainerType> daughPosTPCTOFBit{"daughPosTPCTOFBit", 2048, "PID TOF bit for positive child of V02"};
+    Configurable<femtodreamparticle::cutContainerType> daughNegCutBit{"daughNegCutBit", 2401445, "Selection bit for negative child of V02"}; // K-
+    Configurable<femtodreamparticle::cutContainerType> daughNegMergedTPCBit{"daughNegMergedTPCBit", 16386, "PID TPC bit for negative child of V02"};
+    Configurable<femtodreamparticle::cutContainerType> daughNegMergedTPCTOFBit{"daughNegMergedTPCTOFBit", 8194, "PID TOF bit for negative child of V02"};
+
+    Configurable<float> dcaXYPar0{"dcaXYPar0", 0.004, "first parameter for pt dependent dcaXY cut"};
+    Configurable<float> dcaXYPar1{"dcaXYPar1", 0.013, "second parameter for pt dependent dcaXY cut"};
   } Reso2;
 
   /// Partition for particle 1
@@ -178,6 +187,18 @@ struct FemtoDreamPairTaskV0Reso {
                                              (aod::femtodreamparticle::mAntiLambda > V01.invMassAntiMin) &&
                                              (aod::femtodreamparticle::mAntiLambda < V01.invMassAntiMax);
 
+  /// Partition for MC particle 1
+  Partition<FDMCParts> partitionMCV01 = (aod::femtodreamparticle::partType == uint8_t(aod::femtodreamparticle::ParticleType::kV0)) &&
+                                        ((aod::femtodreamparticle::cut & V01.cutBit) == V01.cutBit) &&
+                                        (aod::femtodreamparticle::pt > V01.ptMin) &&
+                                        (aod::femtodreamparticle::pt < V01.ptMax) &&
+                                        (aod::femtodreamparticle::eta > V01.etaMin) &&
+                                        (aod::femtodreamparticle::eta < V01.etaMax) &&
+                                        (aod::femtodreamparticle::mLambda > V01.invMassMin) &&
+                                        (aod::femtodreamparticle::mLambda < V01.invMassMax) &&
+                                        (aod::femtodreamparticle::mAntiLambda > V01.invMassAntiMin) &&
+                                        (aod::femtodreamparticle::mAntiLambda < V01.invMassAntiMax);
+
   /// Partition for particle 2
   Partition<aod::FDParticles> partitionReso2 = (ifnode(aod::femtodreamparticle::partType == uint8_t(aod::femtodreamparticle::ParticleType::kResoPosdaughTPC_NegdaughTPC), ncheckbit(aod::femtodreamparticle::pidcut, Reso2.daughPosTPCBit) && ncheckbit(aod::femtodreamparticle::cut, Reso2.daughNegMergedTPCBit), false) ||
                                                 ifnode(aod::femtodreamparticle::partType == uint8_t(aod::femtodreamparticle::ParticleType::kResoPosdaughTOF_NegdaughTOF), ncheckbit(aod::femtodreamparticle::pidcut, Reso2.daughPosTPCTOFBit) && ncheckbit(aod::femtodreamparticle::cut, Reso2.daughNegMergedTPCTOFBit), false) ||
@@ -189,6 +210,17 @@ struct FemtoDreamPairTaskV0Reso {
                                                (aod::femtodreamparticle::mLambda > Reso2.invMassMin) &&
                                                (aod::femtodreamparticle::mLambda < Reso2.invMassMax);
 
+  /// Partition for MC particle 2
+  Partition<FDMCParts> partitionMCReso2 = (ifnode(aod::femtodreamparticle::partType == uint8_t(aod::femtodreamparticle::ParticleType::kResoPosdaughTPC_NegdaughTPC), ncheckbit(aod::femtodreamparticle::pidcut, Reso2.daughPosTPCBit) && ncheckbit(aod::femtodreamparticle::cut, Reso2.daughNegMergedTPCBit), false) ||
+                                           ifnode(aod::femtodreamparticle::partType == uint8_t(aod::femtodreamparticle::ParticleType::kResoPosdaughTOF_NegdaughTOF), ncheckbit(aod::femtodreamparticle::pidcut, Reso2.daughPosTPCTOFBit) && ncheckbit(aod::femtodreamparticle::cut, Reso2.daughNegMergedTPCTOFBit), false) ||
+                                           ifnode(aod::femtodreamparticle::partType == uint8_t(aod::femtodreamparticle::ParticleType::kResoPosdaughTOF_NegdaughTPC), ncheckbit(aod::femtodreamparticle::pidcut, Reso2.daughPosTPCTOFBit) && ncheckbit(aod::femtodreamparticle::cut, Reso2.daughNegMergedTPCBit), false) ||
+                                           ifnode(aod::femtodreamparticle::partType == uint8_t(aod::femtodreamparticle::ParticleType::kResoPosdaughTPC_NegdaughTOF), ncheckbit(aod::femtodreamparticle::pidcut, Reso2.daughPosTPCBit) && ncheckbit(aod::femtodreamparticle::cut, Reso2.daughNegMergedTPCTOFBit), false)) &&
+                                          (aod::femtodreamparticle::pt < Reso2.ptMax) &&
+                                          (aod::femtodreamparticle::eta > Reso2.etaMin) &&
+                                          (aod::femtodreamparticle::eta < Reso2.etaMax) &&
+                                          (aod::femtodreamparticle::mLambda > Reso2.invMassMin) &&
+                                          (aod::femtodreamparticle::mLambda < Reso2.invMassMax);
+
   ColumnBinningPolicy<aod::collision::PosZ, aod::femtodreamcollision::MultNtr> colBinningMult{{Mixing.binVztx, Mixing.binMult}, true};
   ColumnBinningPolicy<aod::collision::PosZ, aod::femtodreamcollision::MultV0M> colBinningMultPercentile{{Mixing.binVztx, Mixing.binMultPercentile}, true};
   ColumnBinningPolicy<aod::collision::PosZ, aod::femtodreamcollision::MultNtr, aod::femtodreamcollision::MultV0M> colBinningMultMultPercentile{{Mixing.binVztx, Mixing.binMult, Mixing.binMultPercentile}, true};
@@ -198,7 +230,6 @@ struct FemtoDreamPairTaskV0Reso {
 
   using FilteredCollisions = soa::Filtered<FDCollisions>;
   using FilteredCollision = FilteredCollisions::iterator;
-  // no masked yet
 
   /// Histogramming for particle 1
   FemtoDreamParticleHisto<aod::femtodreamparticle::ParticleType::kV0, 1> v0HistoPartOne;
@@ -206,13 +237,13 @@ struct FemtoDreamPairTaskV0Reso {
   FemtoDreamParticleHisto<aod::femtodreamparticle::ParticleType::kV0Child, 4> negChildHistos;
 
   /// Histogramming for particle 2
-  /// prob need to add cases in fillQA, fillDebug in femtoDreamParticleHisto
   FemtoDreamParticleHisto<aod::femtodreamparticle::ParticleType::kReso, 2> resoHistoPartTwo;
   FemtoDreamParticleHisto<aod::femtodreamparticle::ParticleType::kResoChild, 3> resoposChildHistos;
   FemtoDreamParticleHisto<aod::femtodreamparticle::ParticleType::kResoChild, 4> resonegChildHistos;
 
   /// Histogram output
   HistogramRegistry registry{"Output", {}, OutputObjHandlingPolicy::AnalysisObject};
+  HistogramRegistry resoRegistry{"ResodcaXY", {}, OutputObjHandlingPolicy::AnalysisObject};
 
   void init(InitContext&) // InitContext& context
   {
@@ -223,7 +254,7 @@ struct FemtoDreamPairTaskV0Reso {
     colBinningMultMultPercentile = {{Mixing.binVztx, Mixing.binMult, Mixing.binMultPercentile}, true};
 
     eventHisto.init(&registry, Option.isMC);
-    // change them !!
+
     v0HistoPartOne.init(&registry, Binning.multTempFit, Option.dummy, Binning.pTTrack, Option.dummy, Option.dummy, Binning.tempFitVarV0, Option.dummy, Option.dummy, Option.dummy, Option.dummy, Option.dummy, Option.dummy, Option.isMC, V01.pdgCode);
     posChildHistos.init(&registry, Binning.multTempFit, Option.dummy, Binning.pTV0Child, Option.dummy, Option.dummy, Binning.tempFitVarV0Child, Option.dummy, Option.dummy, Option.dummy, Option.dummy, Option.dummy, Option.dummy, false, 0);
     negChildHistos.init(&registry, Binning.multTempFit, Option.dummy, Binning.pTV0Child, Option.dummy, Option.dummy, Binning.tempFitVarV0Child, Option.dummy, Option.dummy, Option.dummy, Option.dummy, Option.dummy, Option.dummy, false, 0);
@@ -248,6 +279,10 @@ struct FemtoDreamPairTaskV0Reso {
                         Option.smearingByOrigin, Binning.invMass);
 
     mixedEventCont.setPDGCodes(V01.pdgCode, Reso2.pdgCode);
+
+    resoRegistry.add("Before/DCAxyPt", "DCAxyvsPt", HistType::kTH2F, {{100, -0.8, 0.8}, {100, 0.0, 4}});
+    resoRegistry.add("After/DCAxyPt", "DCAxyvsPt", HistType::kTH2F, {{100, -0.8, 0.8}, {100, 0.0, 4}});
+
     // pairCleaner.init(&registry);
     if (Option.cPROn.value) {
       pairCloseRejectionSE.init(&registry, &registry, Option.cPRdeltaPhiMax.value, Option.cPRdeltaEtaMax.value, Option.cPRPlotPerRadii.value, 1, Option.cPROld.value);
@@ -255,7 +290,7 @@ struct FemtoDreamPairTaskV0Reso {
     }
   }
 
-  template <typename PartitionType, typename TableTracks, typename Collision>
+  template <bool isMC, typename PartitionType, typename TableTracks, typename Collision>
   void doSameEvent(PartitionType& sliceV01, PartitionType& sliceReso2, TableTracks const& parts, Collision const& col)
   {
     /// Histogramming for same event missing
@@ -268,7 +303,7 @@ struct FemtoDreamPairTaskV0Reso {
           ((posChild.pidcut() & V01.childPosTPCBit) == V01.childPosTPCBit) &&
           ((negChild.cut() & V01.childNegCutBit) == V01.childNegCutBit) &&
           ((negChild.pidcut() & V01.childNegTPCBit) == V01.childNegTPCBit)) {
-        v0HistoPartOne.fillQA<false, false>(v0, aod::femtodreamparticle::kPt, col.multNtr(), col.multV0M()); // fillQA<Option.isMC, false>, here IsDebug == true, false??
+        v0HistoPartOne.fillQA<isMC, false>(v0, aod::femtodreamparticle::kPt, col.multNtr(), col.multV0M());
         posChildHistos.fillQA<false, false>(posChild, aod::femtodreamparticle::kPt, col.multNtr(), col.multV0M());
         negChildHistos.fillQA<false, false>(negChild, aod::femtodreamparticle::kPt, col.multNtr(), col.multV0M());
       }
@@ -277,6 +312,16 @@ struct FemtoDreamPairTaskV0Reso {
     for (const auto& reso : sliceReso2) {
       const auto& posresoChild = parts.iteratorAt(reso.index() - 2);
       const auto& negresoChild = parts.iteratorAt(reso.index() - 1);
+
+      resoRegistry.fill(HIST("Before/DCAxyPt"), posresoChild.tempFitVar(), posresoChild.pt());
+      resoRegistry.fill(HIST("Before/DCAxyPt"), negresoChild.tempFitVar(), negresoChild.pt());
+
+      if ((std::abs(posresoChild.tempFitVar()) > Reso2.dcaXYPar0 + Reso2.dcaXYPar1 * std::pow(posresoChild.pt(), -1)) || (std::abs(negresoChild.tempFitVar()) > Reso2.dcaXYPar0 + Reso2.dcaXYPar1 * std::pow(negresoChild.pt(), -1))) {
+        continue;
+      }
+
+      resoRegistry.fill(HIST("After/DCAxyPt"), posresoChild.tempFitVar(), posresoChild.pt());
+      resoRegistry.fill(HIST("After/DCAxyPt"), negresoChild.tempFitVar(), negresoChild.pt());
 
       if (ncheckbit(posresoChild.cut(), Reso2.daughPosCutBit)) {
         resoposChildHistos.fillQA<false, false>(posresoChild, aod::femtodreamparticle::kPt, col.multNtr(), col.multV0M());
@@ -288,7 +333,7 @@ struct FemtoDreamPairTaskV0Reso {
 
       if (((posresoChild.cut() & Reso2.daughPosCutBit) == Reso2.daughPosCutBit) &&
           ((negresoChild.cut() & Reso2.daughNegCutBit) == Reso2.daughNegCutBit)) {
-        resoHistoPartTwo.fillQA<false, false>(reso, aod::femtodreamparticle::kPt, col.multNtr(), col.multV0M()); // improve
+        resoHistoPartTwo.fillQA<isMC, false>(reso, aod::femtodreamparticle::kPt, col.multNtr(), col.multV0M()); // improve
       }
     }
 
@@ -314,7 +359,7 @@ struct FemtoDreamPairTaskV0Reso {
             continue;
           }
         }
-        sameEventCont.setPair<false>(p1, p2, col.multNtr(), col.multV0M(), Option.use4D, Option.extendedPlots, Option.smearingByOrigin);
+        sameEventCont.setPair<isMC>(p1, p2, col.multNtr(), col.multV0M(), Option.use4D, Option.extendedPlots, Option.smearingByOrigin);
       }
     }
   }
@@ -339,11 +384,15 @@ struct FemtoDreamPairTaskV0Reso {
 
         for (const auto& [p1, p2] : combinations(CombinationsFullIndexPolicy(sliceV01, sliceReso2))) {
 
-          const auto& posChild = parts.iteratorAt(p1.index() - 2);
-          const auto& negChild = parts.iteratorAt(p1.index() - 1);
+          const auto& posChild = parts.iteratorAt(p1.globalIndex() - 2);
+          const auto& negChild = parts.iteratorAt(p1.globalIndex() - 1);
 
-          const auto& posresoChild = parts.iteratorAt(p2.index() - 2);
-          const auto& negresoChild = parts.iteratorAt(p2.index() - 1);
+          const auto& posresoChild = parts.iteratorAt(p2.globalIndex() - 2);
+          const auto& negresoChild = parts.iteratorAt(p2.globalIndex() - 1);
+
+          if ((std::abs(posresoChild.tempFitVar()) > Reso2.dcaXYPar0 + Reso2.dcaXYPar1 * std::pow(posresoChild.pt(), -1)) || (std::abs(negresoChild.tempFitVar()) > Reso2.dcaXYPar0 + Reso2.dcaXYPar1 * std::pow(negresoChild.pt(), -1))) {
+            continue;
+          }
 
           // why pass if fullfilled??
           if ((((posChild.cut() & V01.childPosCutBit) == V01.childPosCutBit) &&
@@ -359,30 +408,43 @@ struct FemtoDreamPairTaskV0Reso {
                 continue;
               }
             }
-            mixedEventCont.setPair<false>(p1, p2, collision1.multNtr(), collision1.multV0M(), Option.use4D, Option.extendedPlots, Option.smearingByOrigin);
+            mixedEventCont.setPair<isMC>(p1, p2, collision1.multNtr(), collision1.multV0M(), Option.use4D, Option.extendedPlots, Option.smearingByOrigin);
           }
         }
       }
     }
   }
 
-  void processSameEvent(const FilteredCollision& col, const FDParticles& parts) // try this.
+  void processSameEvent(const FilteredCollision& col, const FDParticles& parts)
   {
     // fillCollision<false>(col);
-    auto sliceV01 = partitionV01.sliceByCached(aod::femtodreamparticle::fdCollisionId, col.globalIndex(), cache); // maybe use .
+    auto sliceV01 = partitionV01.sliceByCached(aod::femtodreamparticle::fdCollisionId, col.globalIndex(), cache);
     auto sliceReso2 = partitionReso2.sliceByCached(aod::femtodreamparticle::fdCollisionId, col.globalIndex(), cache);
 
     // if (sliceV01.size() == 0 && sliceReso2.size() == 0) {
     //   return;
     // }
     eventHisto.fillQA<false>(col);
-    doSameEvent(sliceV01, sliceReso2, parts, col);
+    doSameEvent<false>(sliceV01, sliceReso2, parts, col);
   }
   PROCESS_SWITCH(FemtoDreamPairTaskV0Reso, processSameEvent, "Enable processing same event", true);
 
+  void processSameEventMC(FilteredMCCollision const& col, o2::aod::FDMCCollisions const&, FDMCParts const& parts, o2::aod::FDMCParticles const&)
+  {
+    // fillCollision<false>(col);
+    auto sliceMCV01 = partitionMCV01.sliceByCached(aod::femtodreamparticle::fdCollisionId, col.globalIndex(), cache);
+    auto sliceMCReso2 = partitionMCReso2.sliceByCached(aod::femtodreamparticle::fdCollisionId, col.globalIndex(), cache);
+
+    // if (sliceV01.size() == 0 && sliceReso2.size() == 0) {
+    //   return;
+    // }
+    eventHisto.fillQA<true>(col);
+    doSameEvent<true>(sliceMCV01, sliceMCReso2, parts, col);
+  }
+  PROCESS_SWITCH(FemtoDreamPairTaskV0Reso, processSameEventMC, "Enable processing same event MC", false);
+
   void processMixedEvent(const FilteredCollisions& cols, const FDParticles& parts)
   {
-
     switch (Mixing.policy.value) {
       case femtodreamcollision::kMult:
         doMixedEvent<false>(cols, parts, partitionV01, partitionReso2, colBinningMult);
@@ -398,6 +460,24 @@ struct FemtoDreamPairTaskV0Reso {
     }
   }
   PROCESS_SWITCH(FemtoDreamPairTaskV0Reso, processMixedEvent, "Enable processing mixed event", true);
+
+  void processMixedEventMC(FilteredMCCollisions const& cols, o2::aod::FDMCCollisions const&, FDMCParts const& parts, o2::aod::FDMCParticles const&)
+  {
+    switch (Mixing.policy.value) {
+      case femtodreamcollision::kMult:
+        doMixedEvent<true>(cols, parts, partitionMCV01, partitionMCReso2, colBinningMult);
+        break;
+      case femtodreamcollision::kMultPercentile:
+        doMixedEvent<true>(cols, parts, partitionMCV01, partitionMCReso2, colBinningMultPercentile);
+        break;
+      case femtodreamcollision::kMultMultPercentile:
+        doMixedEvent<true>(cols, parts, partitionMCV01, partitionMCReso2, colBinningMultMultPercentile);
+        break;
+      default:
+        LOG(fatal) << "Invalid binning policiy specifed. Breaking...";
+    }
+  }
+  PROCESS_SWITCH(FemtoDreamPairTaskV0Reso, processMixedEventMC, "Enable processing mixed events MC", false); // why false?
 };
 
 WorkflowSpec defineDataProcessing(ConfigContext const& cfgc)
