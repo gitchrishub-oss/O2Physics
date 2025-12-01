@@ -188,6 +188,7 @@ struct FemtoDreamProducerTaskReso {
     Configurable<bool> confLambdaRejectLambdas{"confLambdaRejectLambdas", false, "Switch to reject lambdas (if mother is kaon)"};
     Configurable<float> confLambdaInvKaonMassLowLimit{"confLambdaInvKaonMassLowLimit", 0.48, "Lower limit of the V0 invariant mass for Kaon rejection"};
     Configurable<float> confLambdaInvKaonMassUpLimit{"confLambdaInvKaonMassUpLimit", 0.515, "Upper limit of the V0 invariant mass for Kaon rejection"};
+    Configurable<bool> confLambdaMotherIsLambda{"confLambdaMotherIsLambda", true, "Sets the type of the V0 particle"};
 
     Configurable<std::vector<float>> confLambdaChildSign{"confLambdaChildSign", std::vector<float>{-1, 1}, "V0 Child sel: Charge"};
     Configurable<std::vector<float>> confLambdaChildEtaMax{"confLambdaChildEtaMax", std::vector<float>{0.8f}, "V0 Child sel: max eta"};
@@ -213,6 +214,7 @@ struct FemtoDreamProducerTaskReso {
     Configurable<bool> confK0shortRejectLambdas{"confK0shortRejectLambdas", false, "Switch to reject lambdas (if mother is kaon)"};
     Configurable<float> confK0shortInvKaonMassLowLimit{"confK0shortInvKaonMassLowLimit", 0.48, "Lower limit of the V0 invariant mass for Kaon rejection"};
     Configurable<float> confK0shortInvKaonMassUpLimit{"confK0shortInvKaonMassUpLimit", 0.515, "Upper limit of the V0 invariant mass for Kaon rejection"};
+    Configurable<bool> confK0shortMotherIsLambda{"confK0shortMotherIsLambda", false, "Sets the type of the V0 particle"};
 
     Configurable<std::vector<float>> confK0shortChildSign{"confK0shortChildSign", std::vector<float>{-1, 1}, "V0 Child sel: Charge"};
     Configurable<std::vector<float>> confK0shortChildEtaMax{"confK0shortChildEtaMax", std::vector<float>{0.8f}, "V0 Child sel: max eta"};
@@ -483,7 +485,7 @@ struct FemtoDreamProducerTaskReso {
       LambdaCuts.setChildPIDSpecies(femto_dream_v0_selection::kNegTrack, V0Sel.confLambdaChildPIDspecies);
       LambdaCuts.init<aod::femtodreamparticle::ParticleType::kV0, aod::femtodreamparticle::ParticleType::kV0Child, aod::femtodreamparticle::cutContainerType>(&qaRegistryV0, &v0Registry);
       LambdaCuts.setInvMassLimits(V0Sel.confLambdaInvMassLowLimit, V0Sel.confLambdaInvMassUpLimit);
-      LambdaCuts.setIsMother(true);
+      LambdaCuts.setIsMother(V0Sel.confLambdaMotherIsLambda);
 
       LambdaCuts.setChildRejectNotPropagatedTracks(femto_dream_v0_selection::kPosTrack, confTrkRejectNotPropagated);
       LambdaCuts.setChildRejectNotPropagatedTracks(femto_dream_v0_selection::kNegTrack, confTrkRejectNotPropagated);
@@ -522,7 +524,7 @@ struct FemtoDreamProducerTaskReso {
       K0SCuts.setChildPIDSpecies(femto_dream_v0_selection::kNegTrack, V0Sel.confK0shortChildPIDspecies);
       K0SCuts.init<aod::femtodreamparticle::ParticleType::kV0K0Short, aod::femtodreamparticle::ParticleType::kV0K0ShortChild, aod::femtodreamparticle::cutContainerType>(&qaRegistryV0, &v0Registry);
       K0SCuts.setInvMassLimits(V0Sel.confK0shortInvMassLowLimit, V0Sel.confK0shortInvMassUpLimit);
-      K0SCuts.setIsMother(false);
+      K0SCuts.setIsMother(V0Sel.confK0shortMotherIsLambda);
 
       K0SCuts.setChildRejectNotPropagatedTracks(femto_dream_v0_selection::kPosTrack, confTrkRejectNotPropagated);
       K0SCuts.setChildRejectNotPropagatedTracks(femto_dream_v0_selection::kNegTrack, confTrkRejectNotPropagated);
@@ -1301,10 +1303,12 @@ struct FemtoDreamProducerTaskReso {
         const auto& bachTrackCasc = casc.template bachelor_as<TrackType>();
 
         if (confIsActivateXi.value) {
-          xiCuts.fillQA<0, aod::femtodreamparticle::ParticleType::kCascade, aod::femtodreamparticle::ParticleType::kCascadeV0Child, aod::femtodreamparticle::ParticleType::kCascadeBachelor>(col, casc, posTrackCasc, negTrackCasc, bachTrackCasc);
+          // xiCuts.fillQA<0, aod::femtodreamparticle::ParticleType::kCascade, aod::femtodreamparticle::ParticleType::kCascadeV0Child, aod::femtodreamparticle::ParticleType::kCascadeBachelor>(col, casc, posTrackCasc, negTrackCasc, bachTrackCasc);
 
           if (xiCuts.isSelectedMinimal(col, casc, posTrackCasc, negTrackCasc, bachTrackCasc)) {
-            xiCuts.fillQA<1, aod::femtodreamparticle::ParticleType::kCascade, aod::femtodreamparticle::ParticleType::kCascadeV0Child, aod::femtodreamparticle::ParticleType::kCascadeBachelor>(col, casc, posTrackCasc, negTrackCasc, bachTrackCasc);
+
+            // xiCuts.fillQA<1, aod::femtodreamparticle::ParticleType::kCascade, aod::femtodreamparticle::ParticleType::kCascadeV0Child, aod::femtodreamparticle::ParticleType::kCascadeBachelor>(col, casc, posTrackCasc, negTrackCasc, bachTrackCasc);
+            //  auto cutContainerCasc = xiCuts.getCutContainer<aod::femtodreamparticle::cutContainerType>(col, casc, v0daugh, posTrackCasc, negTrackCasc, bachTrackCasc);
             auto cutContainerCasc = xiCuts.getCutContainer<aod::femtodreamparticle::cutContainerType>(col, casc, posTrackCasc, negTrackCasc, bachTrackCasc);
 
             // Fill positive child
@@ -1399,12 +1403,14 @@ struct FemtoDreamProducerTaskReso {
             // continue;
           } // if xiCuts.isSelectedMinimal
         } // if confIsActivateXi
-        if (confIsActivateOmega.value) {
+        /*
+        if (confIsActivateOmega.value){
           omegaCuts.fillQA<0, aod::femtodreamparticle::ParticleType::kOmega, aod::femtodreamparticle::ParticleType::kOmegaV0Child, aod::femtodreamparticle::ParticleType::kOmegaBachelor>(col, casc, posTrackCasc, negTrackCasc, bachTrackCasc);
 
           if (omegaCuts.isSelectedMinimal(col, casc, posTrackCasc, negTrackCasc, bachTrackCasc)) {
 
             omegaCuts.fillQA<1, aod::femtodreamparticle::ParticleType::kOmega, aod::femtodreamparticle::ParticleType::kOmegaV0Child, aod::femtodreamparticle::ParticleType::kOmegaBachelor>(col, casc, posTrackCasc, negTrackCasc, bachTrackCasc);
+            // auto cutContainerCasc = xiCuts.getCutContainer<aod::femtodreamparticle::cutContainerType>(col, casc, v0daugh, posTrackCasc, negTrackCasc, bachTrackCasc);
             auto cutContainerCasc = omegaCuts.getCutContainer<aod::femtodreamparticle::cutContainerType>(col, casc, posTrackCasc, negTrackCasc, bachTrackCasc);
 
             // Fill positive child
@@ -1496,9 +1502,11 @@ struct FemtoDreamProducerTaskReso {
               fillDebugCascade(casc, col);                   // QA for Cascade
             }
 
-            // continue;
-          } // if omegaCuts.isSelectedMinimal
-        } // if confIsActivateOmega
+
+            //continue;
+          } //if omegaCuts.isSelectedMinimal
+        } //if confIsActivateOmega
+        */
       } // loop over cascades
     } // at least one cascade active
 
